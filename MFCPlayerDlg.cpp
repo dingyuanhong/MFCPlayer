@@ -131,6 +131,7 @@ BEGIN_MESSAGE_MAP(CMFCPlayerDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_DESTROY()
+	ON_MESSAGE(WM_CHANGEVALUE, OnChangeValue)
 	ON_BN_CLICKED(IDC_BTN_OPEN, &CMFCPlayerDlg::OnBnClickedBtnOpen)
 	ON_BN_CLICKED(IDC_BTN_PLAY, &CMFCPlayerDlg::OnBnClickedBtnPlay)
 	ON_BN_CLICKED(IDC_BTN_PAUSE, &CMFCPlayerDlg::OnBnClickedBtnPause)
@@ -474,9 +475,8 @@ DWORD CMFCPlayerDlg::ReadFrame()
 		else if (out != NULL)
 		{
 			int64_t timeEnd = av_gettime() / 1000;
-			CString strValue;
-			strValue.Format(_T("%lld"), timeEnd - timeBegin);
-			//GetDlgItem(IDC_STATIC_READ)->SetWindowText(strValue);
+			SetValue(IDC_STATIC_READ, timeEnd - timeBegin);
+			
 			int ret = queue.Enqueue(out);
 			if (ret == false)
 			{
@@ -510,9 +510,7 @@ DWORD CMFCPlayerDlg::DecodeFrame()
 		if (evoResult != NULL)
 		{
 			int64_t timeEnd = av_gettime() / 1000;
-			CString strValue;
-			strValue.Format(_T("%lld"), timeEnd - timeBegin);
-			//GetDlgItem(IDC_STATIC_DECODE)->SetWindowText(strValue);
+			SetValue(IDC_STATIC_DECODE, timeEnd - timeBegin);
 
 			int ret = frame_queue.Enqueue(evoResult);
 			if (ret == false)
@@ -570,9 +568,7 @@ DWORD CMFCPlayerDlg::RenderFrame()
 				int64_t timeEnd = av_gettime() / 1000;
 				if (timeEnd - timeBegin >= 1000)
 				{
-					CString strRate;
-					strRate.Format(_T("%d"), Rate);
-					//GetDlgItem(IDC_STATIC_RATE)->SetWindowText(strRate);
+					SetValue(IDC_STATIC_RATE, Rate);
 					timeBegin = timeEnd;
 					Rate = 0;
 				}
@@ -625,9 +621,7 @@ void CMFCPlayerDlg::Render(AVFrame * frame)
 			libyuv::RotationMode::kRotateNone, libyuv::CanonicalFourCC(libyuv::FOURCC_I420));
 
 		DWORD timeEnd = av_gettime() / 1000;
-		CString strValue;
-		strValue.Format(_T("%d"), timeEnd - timeBegin);
-		GetDlgItem(IDC_STATIC_CONVERT)->SetWindowText(strValue);
+		SetValue(IDC_STATIC_CONVERT, timeEnd - timeBegin);
 
 		DrawPicture(picture, bmi_, argb);
 		free(argb);
@@ -638,10 +632,7 @@ void CMFCPlayerDlg::Render(AVFrame * frame)
 	DrawPicture(picture,bmi_,frame->data[0]);
 
 	int64_t timeEnd = av_gettime() / 1000;
-	CString strValue;
-	strValue.Format(_T("%lld"), timeEnd - timeBegin);
-	//GetDlgItem(IDC_STATIC_CONVERT)->SetWindowText(strValue);
-
+	SetValue(IDC_STATIC_CONVERT, timeEnd - timeBegin);
 #endif
 }
 
@@ -665,9 +656,8 @@ DWORD CMFCPlayerDlg::ReadAudioFrame()
 		else if (out != NULL)
 		{
 			int64_t timeEnd = av_gettime() / 1000;
-			CString strValue;
-			strValue.Format(_T("%lld"), timeEnd - timeBegin);
-			//GetDlgItem(IDC_STATIC_AUDIO_READ)->SetWindowText(strValue);
+			SetValue(IDC_STATIC_AUDIO_READ, timeEnd - timeBegin);
+
 			int ret = audio_queue.Enqueue(out);
 			if (ret == false)
 			{
@@ -701,9 +691,8 @@ DWORD CMFCPlayerDlg::DecodeAudioFrame()
 		if (evoResult != NULL)
 		{
 			int64_t timeEnd = av_gettime() / 1000;
-			CString strValue;
-			strValue.Format(_T("%lld"), timeEnd - timeBegin);
-			//GetDlgItem(IDC_STATIC_AUDIO_DECODE)->SetWindowText(strValue);
+			
+			SetValue(IDC_STATIC_AUDIO_DECODE, timeEnd - timeBegin);
 
 			int64_t timeStamp = GetTimeStamp(audiosource_->GetVideoStream()->time_base, evoResult);
 			evoResult->pts = timeStamp;
@@ -715,6 +704,22 @@ DWORD CMFCPlayerDlg::DecodeAudioFrame()
 		}
 		EvoFreeFrame(&out);
 	}
+
+	return 0;
+}
+
+void CMFCPlayerDlg::SetValue(int id,int64_t value)
+{
+	PostMessage(WM_CHANGEVALUE,id,value);
+}
+
+LRESULT CMFCPlayerDlg::OnChangeValue(WPARAM wParam, LPARAM lParam)
+{
+	int id = (int)wParam;
+	int64_t value = lParam;
+	CString strValue;
+	strValue.Format(_T("%lld"), value);
+	GetDlgItem(id)->SetWindowText(strValue);
 
 	return 0;
 }

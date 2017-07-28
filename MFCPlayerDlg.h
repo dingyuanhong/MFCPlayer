@@ -32,6 +32,8 @@
 
 //#define USE_LIBYUV_CONVERT
 
+#define WM_CHANGEVALUE WM_USER + 1
+
 // CMFCPlayerDlg dialog
 class CMFCPlayerDlg : public CDialogEx
 {
@@ -50,8 +52,9 @@ public:
 	DWORD ReadFrame();
 	DWORD DecodeFrame();
 	DWORD RenderFrame();
+
 	void Render(AVFrame * frame);
-	void CMFCPlayerDlg::SetBITMAPSize(int width, int height);
+	void SetBITMAPSize(int width, int height);
 
 	DWORD ReadAudioFrame();
 	DWORD DecodeAudioFrame();
@@ -59,6 +62,8 @@ private:
 	void InitVideo(EvoMediaSource *source);
 	void InitAudio(EvoMediaSource *source);
 	void Start();
+
+	void SetValue(int id, int64_t value);
 private:
 	HANDLE hReadThread;
 	HANDLE hDecodeThread;
@@ -96,6 +101,7 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
+	afx_msg LRESULT OnChangeValue(WPARAM wParam,LPARAM lParam);
 	afx_msg void OnDestroy(void);
 	afx_msg void OnBnClickedBtnOpen();
 	afx_msg void OnBnClickedBtnPlay();
