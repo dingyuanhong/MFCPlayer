@@ -557,7 +557,9 @@ DWORD CMFCPlayerDlg::ReadFrame()
 		int ret = source_->ReadFrame(&out);
 		if (ret == AVERROR_EOF)
 		{
-			break;
+			Sleep(1);
+			continue;
+			//break;
 		}
 		else if (out != NULL)
 		{
@@ -747,7 +749,9 @@ DWORD CMFCPlayerDlg::ReadAudioFrame()
 		int ret = audiosource_->ReadFrame(&out);
 		if (ret == AVERROR_EOF)
 		{
-			break;
+			Sleep(1);
+			continue;
+			//break;
 		}
 		else if (out != NULL)
 		{
