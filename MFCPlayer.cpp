@@ -34,6 +34,28 @@ CMFCPlayerApp::CMFCPlayerApp()
 
 CMFCPlayerApp theApp;
 
+#include <DbgHelp.h>
+#include <fcntl.h>
+#include <io.h>
+
+void Console()
+{
+	AllocConsole();
+	int nCrt = _open_osfhandle((long)GetStdHandle(STD_OUTPUT_HANDLE), _O_TEXT);
+	FILE *fp = _fdopen(nCrt, "w");
+
+	*stdout = *fp;
+	*stderr = *fp;
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
+}
+
+void ConsoleMFC()
+{
+	AllocConsole();
+	SetConsoleTitle(_T("debug console"));
+	freopen("CONOUT$", "w", stdout);
+}
 
 // CMFCPlayerApp initialization
 
@@ -69,7 +91,7 @@ BOOL CMFCPlayerApp::InitInstance()
 	// TODO: You should modify this string to be something appropriate
 	// such as the name of your company or organization
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
-
+	ConsoleMFC();
 	CMFCPlayerDlg dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();

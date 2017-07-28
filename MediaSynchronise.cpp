@@ -1,9 +1,13 @@
 #include "stdafx.h"
 #include "MediaSynchronise.h"
 
-MediaSynchronise::MediaSynchronise()
+//#define LOGA(A,...) fprintf(stdout,A,__VA_ARGS__)
+#define LOGA printf
+
+MediaSynchronise::MediaSynchronise(bool live)
 {
-	max_frame_duration = 1000 / 15.0;
+	max_frame_duration = (live ? 10.0 : 3600.0) * 1000;
+
 	Rate = 60;
 
 	frame_last_pts = 0.0;
@@ -44,15 +48,22 @@ void MediaSynchronise::SetFrameRate(int rate)
 
 int MediaSynchronise::CheckForVideoSynchronise(int64_t timeStamp)
 {
+	if (timeStamp < seeek_timeStamp)
+	{
+		//LOGA("V:stamp:%lld seek:%lld\n", timeStamp, seeek_timeStamp);
+		return -1;
+	}
+	
+	double remaining_time = 1000 / Rate;	//60帧每秒
+
 	if (seek_status)
 	{
-		if (timeStamp < seeek_timeStamp)
+		/*if (timeStamp - seeek_timeStamp > remaining_time * 2)
 		{
 			return -1;
-		}
+		}*/
 	}
 
-	double remaining_time = 1000 / Rate;	//60帧每秒
 	int ret = CalculateDelay(timeStamp,remaining_time);
 	int remaining_t = remaining_time;
 	remaining_t = abs(remaining_t);
@@ -84,10 +95,11 @@ int MediaSynchronise::CalculateDelay(int64_t pts, double &remaining_time)
 
 	double delay = Compute_target_delay(frame_last_duration, max_frame_duration);
 
+	//当前帧未到点
 	double time = av_getmicrotime() / TIME_GRAD;
-	//如果当前时间小于帧时间加延迟时间,则等待
-	if (time < last_frame_time + delay) {
-		remaining_time = FFMIN(last_frame_time + delay - time, remaining_time);
+	int64_t diff = last_frame_time - time + delay;
+	if (diff > 0) {
+		remaining_time = FFMIN(diff, remaining_time);
 		return 1;
 	}
 	return 0;
@@ -146,14 +158,6 @@ int MediaSynchronise::CheckForAudioSynchronise(int64_t timeStamp, int nb_samples
 		}
 		seek_status = false;
 	}
-	double time = av_getmicrotime() / TIME_GRAD;
-
-	int64_t  expect_pts = get_clock(&AudioClock);
-	int64_t delay = timeStamp - expect_pts;
-	if (delay > 5)
-	{
-		return delay;
-	}
 	return 0;
 }
 
@@ -167,4 +171,17 @@ void MediaSynchronise::Seek(int64_t timeStamp)
 {
 	seeek_timeStamp = timeStamp;
 	seek_status = true;
+}
+
+int64_t MediaSynchronise::GetMasterTimeStamp()
+{
+	int64_t stamp = get_clock(&AudioClock);
+	if (seek_status) return seeek_timeStamp;
+	return stamp;
+}
+
+void MediaSynchronise::Dump(FILE *fp)
+{
+	fprintf(fp, "V:pts:%lf dts:%lf pts_drift:%lf last_updated:%lf\n", VideoClock.pts, VideoClock.dts, VideoClock.pts_drift, VideoClock.last_updated);
+	fprintf(fp, "A:pts:%lf dts:%lf pts_drift:%lf last_updated:%lf\n", AudioClock.pts, AudioClock.dts, AudioClock.pts_drift, AudioClock.last_updated);
 }

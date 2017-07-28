@@ -10,6 +10,7 @@
 #include "MediaSynchronise.h"
 #include "EvoInterface\AudioDecoder.h"
 #include "AudioPlay.h"
+#include "EvoMesiaSourceLock.h"
 #include "CodeTransport.h"
 #include "libyuv.h"
 #ifdef _WIN32
@@ -33,6 +34,7 @@
 //#define USE_LIBYUV_CONVERT
 
 #define WM_CHANGEVALUE WM_USER + 1
+#define WM_FLUSHSTAMP WM_USER + 2
 
 // CMFCPlayerDlg dialog
 class CMFCPlayerDlg : public CDialogEx
@@ -53,17 +55,19 @@ public:
 	DWORD DecodeFrame();
 	DWORD RenderFrame();
 
-	void Render(AVFrame * frame);
-	void SetBITMAPSize(int width, int height);
-
 	DWORD ReadAudioFrame();
 	DWORD DecodeAudioFrame();
 private:
-	void InitVideo(EvoMediaSource *source);
-	void InitAudio(EvoMediaSource *source);
+	int InitVideo(EvoMediaSource *source);
+	int InitAudio(EvoMediaSource *source);
 	void Start();
+	void Stop();
+
+	void Render(AVFrame * frame);
+	void SetBITMAPSize(int width, int height);
 
 	void SetValue(int id, int64_t value);
+	void ChangePos();
 private:
 	HANDLE hReadThread;
 	HANDLE hDecodeThread;
@@ -90,6 +94,7 @@ private:
 	MediaSynchronise synchronise;
 	BITMAPINFO bmi_;
 	int Rate;
+	int  CurrentPos;
 // Implementation
 protected:
 	HICON m_hIcon;
@@ -101,6 +106,8 @@ protected:
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
 public:
+	afx_msg void OnHScroll(UINT, UINT, CScrollBar*);
+	afx_msg void OnTimer(UINT_PTR);
 	afx_msg LRESULT OnChangeValue(WPARAM wParam,LPARAM lParam);
 	afx_msg void OnDestroy(void);
 	afx_msg void OnBnClickedBtnOpen();

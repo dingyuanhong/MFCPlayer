@@ -115,7 +115,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <PreprocessorDefinitions>_WINDOWS;_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_WINDOWS;_DEBUG;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
       <AdditionalIncludeDirectories>.\3rd\ffmpeg\include;.\3rd\libyuv\include;.\3rd\SDL\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
@@ -198,6 +198,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AudioPlay.h" />
+    <ClInclude Include="EvoMesiaSourceLock.h" />
     <ClInclude Include="MClock.h" />
     <ClInclude Include="MediaSynchronise.h" />
     <ClInclude Include="MFCPlayer.h" />
@@ -209,6 +210,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="AudioPlay.cpp" />
+    <ClCompile Include="EvoMesiaSourceLock.cpp" />
     <ClCompile Include="MediaSynchronise.cpp" />
     <ClCompile Include="MFCPlayer.cpp" />
     <ClCompile Include="MFCPlayerDlg.cpp" />

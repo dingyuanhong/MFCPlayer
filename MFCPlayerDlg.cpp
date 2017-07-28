@@ -51,10 +51,15 @@ void usleep(int64_t time)
 		QueryPerformanceCounter(&litmp);
 		QPart2 = litmp.QuadPart;//获得中止值
 		dfMinus = (double)(QPart2 - QPart1);
-		dfTim = dfMinus / dfFreq;// 获得对应的时间值，单位为秒
-		if (dfTim * 1000 >= time)
+		dfTim = dfMinus * 1000 / dfFreq;// 获得对应的时间值，单位为秒
+		dfTim = time - dfTim;
+		if (dfTim <= 0)
 		{
 			break;
+		}
+		else if (dfTim > 16)
+		{
+			Sleep(16);
 		}
 	} while (true);
 }
@@ -114,9 +119,42 @@ static void DrawPicture(CWnd * wnd, const BITMAPINFO bmi, const uint8_t* image)
 	::ReleaseDC(pPicture->GetSafeHwnd(), hdc);
 }
 
+void WaitMessage(int64_t time)
+{
+	LARGE_INTEGER litmp;
+	LONGLONG QPart1, QPart2;
+	double dfMinus, dfFreq, dfTim;
+	QueryPerformanceFrequency(&litmp);
+	dfFreq = (double)litmp.QuadPart;// 获得计数器的时钟频率
+	QueryPerformanceCounter(&litmp);
+	QPart1 = litmp.QuadPart;// 获得初始值
+
+	MSG lpMsg;
+	do {
+		if (PeekMessage(&lpMsg,NULL,0,0, PM_NOREMOVE))
+		{
+			if (GetMessage(&lpMsg, NULL, 0, 0)) {
+				TranslateMessage(&lpMsg);
+				DispatchMessage(&lpMsg);
+			}
+		}
+
+		QueryPerformanceCounter(&litmp);
+		QPart2 = litmp.QuadPart;//获得中止值
+		dfMinus = (double)(QPart2 - QPart1);
+		dfTim = dfMinus * 1000 / dfFreq;// 获得对应的时间值，单位为秒
+		dfTim = time - dfTim;
+		if (dfTim <= 0)
+		{
+			break;
+		}
+	} while (true);
+}
+
 CMFCPlayerDlg::CMFCPlayerDlg(CWnd* pParent /*=NULL*/)
 	: CDialogEx(IDD_MFCPLAYER_DIALOG, pParent),
-	queue(10), frame_queue(3), audio_queue(10)
+	queue(10), frame_queue(3), audio_queue(10),
+	synchronise(false)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -131,6 +169,8 @@ BEGIN_MESSAGE_MAP(CMFCPlayerDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_WM_DESTROY()
+	ON_WM_TIMER()
+	ON_WM_HSCROLL()
 	ON_MESSAGE(WM_CHANGEVALUE, OnChangeValue)
 	ON_BN_CLICKED(IDC_BTN_OPEN, &CMFCPlayerDlg::OnBnClickedBtnOpen)
 	ON_BN_CLICKED(IDC_BTN_PLAY, &CMFCPlayerDlg::OnBnClickedBtnPlay)
@@ -186,8 +226,9 @@ BOOL CMFCPlayerDlg::OnInitDialog()
 
 	synchronise.SetFrameRate(30);
 	NeedShowframe = NULL;
-
+	
 	audioPlay.initSDL();
+	CurrentPos = 0;
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
@@ -250,7 +291,7 @@ void CMFCPlayerDlg::OnBnClickedBtnOpen()
 	if (dlg.DoModal() == IDOK)
 	{
 		CString path = dlg.GetPathName();
-		EvoMediaSource *source = new EvoMediaSource();
+		EvoMediaSource *source = new EvoMediaSourceLock();
 		std::string file = P2AString(path.GetBuffer());
 		int ret = source->Open(file.c_str());
 		if (ret != 0)
@@ -261,7 +302,7 @@ void CMFCPlayerDlg::OnBnClickedBtnOpen()
 			return;
 		}
 
-		EvoMediaSource *audioSource = new EvoMediaSource();
+		EvoMediaSource *audioSource = new EvoMediaSourceLock();
 		file = P2AString(path.GetBuffer());
 		ret = audioSource->Open(file.c_str(),NULL,AVMEDIA_TYPE_AUDIO);
 		if (ret != 0)
@@ -271,30 +312,42 @@ void CMFCPlayerDlg::OnBnClickedBtnOpen()
 		}
 
 		OnBnClickedBtnStop();
-		InitVideo(source);
-		InitAudio(audioSource);
+		ret = InitVideo(source);
+		if (ret != 0)
+		{
+			delete source;
+			source = NULL;
+		}
+		ret = InitAudio(audioSource);
+		if (ret != 0)
+		{
+			delete audioSource;
+			audioSource = NULL;
+		}
 	}
 }
 
-void CMFCPlayerDlg::InitVideo(EvoMediaSource *source)
+int CMFCPlayerDlg::InitVideo(EvoMediaSource *source)
 {
 	if (source_ != NULL)
 	{
 		delete source_;
+		source_ = NULL;
 	}
-	source_ = source;
-
 	if (videoDecode_ != NULL)
 	{
 		delete videoDecode_;
 	}
+
 	AVStream * stream = source->GetVideoStream();
 	AVCodec *codec = (AVCodec*)stream->codec->codec;
 	if (codec == NULL) codec = avcodec_find_decoder(stream->codec->codec_id);
 	if (avcodec_open2(stream->codec, codec, NULL) < 0)
 	{
-		return;
+		return -1;
 	}
+
+	source_ = source;
 	videoDecode_ = new VideoDecoder(stream->codec);
 
 #ifndef USE_LIBYUV_CONVERT
@@ -312,26 +365,43 @@ void CMFCPlayerDlg::InitVideo(EvoMediaSource *source)
 		videoDecode_->Attach(&convert_);
 	}
 #endif
+	int duration = source_->GetDuration();
+	CSliderCtrl * slider = (CSliderCtrl*)GetDlgItem(IDC_SLIDER_TIME);
+	slider->SetRange(0,duration);
+
+	CString strDuration;
+	strDuration.Format(_T("%lld"), duration);
+	GetDlgItem(IDC_STATIC_DV)->SetWindowText(strDuration);
+	duration /= 1000;
+	strDuration.Format(_T("%02d:%02d:%02d"), duration/3600, (duration/60)%60, duration%60);
+	GetDlgItem(IDC_STATIC_DURATION)->SetWindowText(strDuration);
+	return 0;
 }
 
-void CMFCPlayerDlg::InitAudio(EvoMediaSource *source)
+int CMFCPlayerDlg::InitAudio(EvoMediaSource *source)
 {
+	//return - 1;
 	if (audiosource_ != NULL)
 	{
 		delete audiosource_;
 		audiosource_ = NULL;
 	}
-	audiosource_ = source;
-	if (audiosource_ == NULL) return;
+	
+	if (audioDecode_ != NULL)
+	{
+		delete audioDecode_;
+		audioDecode_ = NULL;
+	}
 
 	AVStream * stream = source->GetVideoStream();
 	AVCodec *codec = (AVCodec*)stream->codec->codec;
 	if (codec == NULL) codec = avcodec_find_decoder(stream->codec->codec_id);
 	if (avcodec_open2(stream->codec, codec, NULL) < 0)
 	{
-		return;
+		return -1;
 	}
-	stream->time_base;
+
+	audiosource_ = source;
 	audioDecode_ = new AudioDecoder(stream->codec);
 	EvoAudioInfo info = {0};
 	if (stream->codec->codec_id == AV_CODEC_ID_MP2 || stream->codec->codec_id == AV_CODEC_ID_MP3)
@@ -347,6 +417,8 @@ void CMFCPlayerDlg::InitAudio(EvoMediaSource *source)
 
 	audioPlay.AttachSync(&synchronise);
 	audioPlay.closeAudio();
+
+	return 0;
 }
 
 void CMFCPlayerDlg::OnBnClickedBtnPlay()
@@ -356,12 +428,14 @@ void CMFCPlayerDlg::OnBnClickedBtnPlay()
 	Start();
 	IsPause = false;
 	audioPlay.playAudio();
+	SetTimer(WM_FLUSHSTAMP,1000,NULL);
 }
 
 void CMFCPlayerDlg::OnBnClickedBtnPause()
 {
 	IsPause = true;
 	audioPlay.pauseAudio();
+	KillTimer(WM_FLUSHSTAMP);
 }
 
 void CMFCPlayerDlg::Start()
@@ -396,7 +470,7 @@ void CMFCPlayerDlg::Start()
 	}
 }
 
-void CMFCPlayerDlg::OnBnClickedBtnStop()
+void CMFCPlayerDlg::Stop()
 {
 	IsStop = true;
 	IsPause = false;
@@ -407,7 +481,7 @@ void CMFCPlayerDlg::OnBnClickedBtnStop()
 	audioPlay.GetQueue().Notify(true);
 	audioPlay.closeAudio();
 	//清理线程
-	if(hReadThread != NULL) WaitForSingleObject(hReadThread, INFINITE);
+	if (hReadThread != NULL) WaitForSingleObject(hReadThread, INFINITE);
 	if (hDecodeThread != NULL) WaitForSingleObject(hDecodeThread, INFINITE);
 	if (hRenderThread != NULL) WaitForSingleObject(hRenderThread, INFINITE);
 	if (hReadAudioThread != NULL) WaitForSingleObject(hReadAudioThread, INFINITE);
@@ -444,14 +518,27 @@ void CMFCPlayerDlg::OnBnClickedBtnStop()
 	{
 		source_->Seek(0);
 	}
+	if (audiosource_ != 0)
+	{
+		audiosource_->Seek(0);
+	}
 	//清理同步器
 	synchronise.Clear();
+
+	KillTimer(WM_FLUSHSTAMP);
+	CSliderCtrl * slider = (CSliderCtrl*)GetDlgItem(IDC_SLIDER_TIME);
+	slider->SetPos(0);
+	CurrentPos = 0;
+}
+
+void CMFCPlayerDlg::OnBnClickedBtnStop()
+{
+	Stop();
 }
 
 void CMFCPlayerDlg::OnTRBNThumbPosChangingSliderTime(NMHDR *pNMHDR, LRESULT *pResult)
 {
 	NMTRBTHUMBPOSCHANGING *pNMTPC = reinterpret_cast<NMTRBTHUMBPOSCHANGING *>(pNMHDR);
-	
 	*pResult = 0;
 }
 
@@ -476,7 +563,10 @@ DWORD CMFCPlayerDlg::ReadFrame()
 		{
 			int64_t timeEnd = av_gettime() / 1000;
 			SetValue(IDC_STATIC_READ, timeEnd - timeBegin);
-			
+			if (out->flags == 1)
+			{
+				printf("V:I:pts:%lld\n",out->timestamp);
+			}
 			int ret = queue.Enqueue(out);
 			if (ret == false)
 			{
@@ -484,6 +574,7 @@ DWORD CMFCPlayerDlg::ReadFrame()
 			}
 		}
 	}
+	printf("V:ReadFrame End.\n");
 	return 0;
 }
 
@@ -526,6 +617,7 @@ DWORD CMFCPlayerDlg::DecodeFrame()
 
 DWORD CMFCPlayerDlg::RenderFrame()
 {
+	FILE * fp = fopen("../log.log","w");
 	int64_t lastRenderTime = 0;
 	int64_t totalRenderTime = 0;
 	int renderCount = 0;
@@ -546,7 +638,9 @@ DWORD CMFCPlayerDlg::RenderFrame()
 		if (renderFrame != NULL)
 		{
 			int64_t timestamp = GetTimeStamp(source_->GetVideoStream()->time_base, renderFrame);
-			int ret = 0;// synchronise.CheckForVideoSynchronise(timestamp);
+			int ret = synchronise.CheckForVideoSynchronise(timestamp);
+			synchronise.Dump(fp);
+			fprintf(fp,"%d\n",ret);
 			if (ret < 0)
 			{
 				FreeAVFrame(&renderFrame);
@@ -580,6 +674,8 @@ DWORD CMFCPlayerDlg::RenderFrame()
 			}
 		}
 	}
+	if(fp != NULL) fclose(fp);
+	fp = NULL;
 	if (NeedShowframe != NULL)
 	{
 		FreeAVFrame(&NeedShowframe);
@@ -665,6 +761,7 @@ DWORD CMFCPlayerDlg::ReadAudioFrame()
 			}
 		}
 	}
+	printf("A:ReadFrame End.\n");
 	return 0;
 }
 
@@ -722,4 +819,64 @@ LRESULT CMFCPlayerDlg::OnChangeValue(WPARAM wParam, LPARAM lParam)
 	GetDlgItem(id)->SetWindowText(strValue);
 
 	return 0;
+}
+
+void CMFCPlayerDlg::OnTimer(UINT_PTR id)
+{
+	if (id == WM_FLUSHSTAMP)
+	{
+		int64_t stamp = synchronise.GetMasterTimeStamp();
+		CSliderCtrl * slider = (CSliderCtrl*)GetDlgItem(IDC_SLIDER_TIME);
+		slider->SetPos(stamp);
+		CurrentPos = stamp;
+
+		CString strDuration;
+		strDuration.Format(_T("%lld"), stamp);
+		GetDlgItem(IDC_STATIC_CV)->SetWindowText(strDuration);
+		stamp /= 1000;
+		strDuration.Format(_T("%02d:%02d:%02d"), stamp / 3600, (stamp / 60) % 60, stamp % 60);
+		GetDlgItem(IDC_STATIC_CURRENT)->SetWindowText(strDuration);
+	}
+}
+
+void CMFCPlayerDlg::ChangePos()
+{
+	CSliderCtrl * slider = (CSliderCtrl*)GetDlgItem(IDC_SLIDER_TIME);
+	int stamp = slider->GetPos();
+	printf("seek:%lld\n", stamp);
+	if (stamp != CurrentPos)
+	{
+		KillTimer(WM_FLUSHSTAMP);
+		bool lastPause = IsPause;
+		IsPause = true;
+		
+		synchronise.Seek(stamp);
+
+		queue.Clear(true);
+		frame_queue.Clear(true);
+		audio_queue.Clear(true);
+		audioPlay.GetQueue().Clear(true);
+
+		if (source_ != NULL) source_->Seek(stamp);
+		if (audiosource_ != NULL) audiosource_->Seek(stamp);
+
+		queue.Restart();
+		frame_queue.Restart();
+		audio_queue.Restart();
+		audioPlay.GetQueue().Restart();
+
+		IsPause = lastPause;
+		SetTimer(WM_FLUSHSTAMP, 1000, NULL);
+		CurrentPos = stamp;
+	}
+}
+
+void CMFCPlayerDlg::OnHScroll(UINT nCode, UINT nPos, CScrollBar* bar)
+{
+	CSliderCtrl * slider = (CSliderCtrl*)GetDlgItem(IDC_SLIDER_TIME);
+	if (slider == (CSliderCtrl *)bar)
+	{
+		ChangePos();
+	}
+	CDialogEx::OnHScroll(nCode, nPos, bar);
 }

@@ -6,7 +6,7 @@
 class MediaSynchronise
 {
 public:
-	MediaSynchronise();
+	MediaSynchronise(bool live);
 	~MediaSynchronise();
 
 	void Clear();
@@ -27,6 +27,10 @@ public:
 	//nb_samples : 样本数
 	//sample_rate : 采样率 (44100,...)
 	void ApplyAudioStamp(int64_t timeStamp, int nb_samples, int sample_rate);
+	//获取主线时间戳
+	int64_t GetMasterTimeStamp();
+	//
+	void Dump(FILE *fp);
 private:
 	//计算延迟
 	int CalculateDelay(int64_t pts, double &remaining_time);
