@@ -179,11 +179,16 @@ void EvoMediaSource::Close()
 	Config_.UseSei = false;
 }
 
-int EvoMediaSource::Seek(int millisecond)
+int EvoMediaSource::Seek(int64_t millisecond)
 {
 	if (context_ == NULL) return -1;
+	int duration = GetDuration();
+	if (duration > 0 && millisecond > duration)
+	{
+		millisecond = duration;
+	}
 	int64_t timeStamp = millisecond * 1000;
-	int ret = av_seek_frame(context_,-1, timeStamp, AVSEEK_FLAG_BACKWARD);
+	int ret = av_seek_frame(context_, -1, timeStamp, AVSEEK_FLAG_BACKWARD);
 	if (ret >= 0)
 	{
 		avformat_flush(this->context_);
@@ -344,7 +349,7 @@ int EvoMediaSource::GetSPS(uint8_t * data, int size)
 int EvoMediaSource::GetDuration()
 {
 	if (context_ == NULL) return 0;
-	return (int)context_->duration/1000;
+	return (int)(context_->duration/1000);
 }
 
 int EvoMediaSource::GetFrameRate()

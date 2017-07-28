@@ -34,10 +34,10 @@ public:
 	void Close();
 	//跳转,单位:毫秒
 	//返回值:0:成功 !0:失败
-	int Seek(int millisecond);
+	virtual int Seek(int64_t millisecond);
 	//读取帧
 	//返回值:0:成功 AVERROR_EOF:文件结束 !0:失败
-	int ReadFrame(EvoFrame** out);
+	virtual int ReadFrame(EvoFrame** out);
 	//获取扩展数据
 	//返回值:扩展数据大小
 	int GetExtData(uint8_t * data, int size);
