@@ -565,7 +565,7 @@ DWORD CMFCPlayerDlg::ReadFrame()
 			SetValue(IDC_STATIC_READ, timeEnd - timeBegin);
 			if (out->flags == 1)
 			{
-				printf("V:I:pts:%lld\n",out->timestamp);
+				//printf("V:I:pts:%lld\n",out->timestamp);
 			}
 			int ret = queue.Enqueue(out);
 			if (ret == false)

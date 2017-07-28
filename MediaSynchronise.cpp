@@ -129,6 +129,8 @@ double MediaSynchronise::Compute_target_delay(double delay, double max_frame_dur
 		if (!isnan(diff) && fabs(diff) < max_frame_duration) {
 			if (diff <= -sync_threshold)	//视频慢
 				delay = FFMAX(0, delay + diff);
+			else if (diff < 0)				//视频慢,得加快速度播放
+				delay = FFMIN(delay , delay + diff);
 			else if (diff >= sync_threshold && delay > AV_SYNC_FRAMEDUP_THRESHOLD)//视频太快了
 				delay = delay + diff;
 			else if (diff >= sync_threshold)//视频快
