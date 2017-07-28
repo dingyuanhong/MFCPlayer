@@ -6,7 +6,7 @@
 
 MediaSynchronise::MediaSynchronise(bool live)
 {
-	max_frame_duration = (live ? 10.0 : 3600.0) * 1000;
+	max_frame_duration = (live ? 10.0 : 3600.0);
 
 	Rate = 60;
 
@@ -19,7 +19,8 @@ MediaSynchronise::MediaSynchronise(bool live)
 
 	init_clock(&AudioClock);
 	init_clock(&VideoClock);
-	seek_status = false;
+	audio_seek_status = false;
+	video_seek_status = false;
 }
 
 MediaSynchronise::~MediaSynchronise()
@@ -37,7 +38,8 @@ void MediaSynchronise::Clear()
 
 	init_clock(&AudioClock);
 	init_clock(&VideoClock);
-	seek_status = false;
+	audio_seek_status = false;
+	video_seek_status = false;
 }
 
 void MediaSynchronise::SetFrameRate(int rate)
@@ -56,12 +58,17 @@ int MediaSynchronise::CheckForVideoSynchronise(int64_t timeStamp)
 	
 	double remaining_time = 1000 / Rate;	//60帧每秒
 
-	if (seek_status)
+	if (video_seek_status)
 	{
-		/*if (timeStamp - seeek_timeStamp > remaining_time * 2)
+		if (timeStamp - seeek_timeStamp > remaining_time * 2)
 		{
 			return -1;
-		}*/
+		}
+		else
+		{
+			remaining_time = 1000 / Rate;	//60帧每秒
+		}
+		video_seek_status = false;
 	}
 
 	int ret = CalculateDelay(timeStamp,remaining_time);
@@ -143,7 +150,7 @@ double MediaSynchronise::GetClockDelay()
 
 int MediaSynchronise::CheckForAudioSynchronise(int64_t timeStamp, int nb_samples, int sample_rate)
 {
-	if (seek_status)
+	if (audio_seek_status)
 	{
 		//当帧是过时帧,则丢弃
 		if (timeStamp < seeek_timeStamp)
@@ -156,7 +163,7 @@ int MediaSynchronise::CheckForAudioSynchronise(int64_t timeStamp, int nb_samples
 		{
 			return -1;
 		}
-		seek_status = false;
+		audio_seek_status = false;
 	}
 	return 0;
 }
@@ -170,13 +177,16 @@ void MediaSynchronise::ApplyAudioStamp(int64_t timeStamp, int nb_samples, int sa
 void MediaSynchronise::Seek(int64_t timeStamp)
 {
 	seeek_timeStamp = timeStamp;
-	seek_status = true;
+	ApplyAudioStamp(seeek_timeStamp,0,1);
+	ApplyVideoStamp(seeek_timeStamp);
+	audio_seek_status = true;
+	video_seek_status = true;
 }
 
 int64_t MediaSynchronise::GetMasterTimeStamp()
 {
 	int64_t stamp = get_clock(&AudioClock);
-	if (seek_status) return seeek_timeStamp;
+	if (audio_seek_status) return seeek_timeStamp;
 	return stamp;
 }
 

@@ -50,6 +50,7 @@ private:
 	double remaining_time;
 
 	int64_t seeek_timeStamp;
-	bool seek_status;
+	bool audio_seek_status;
+	bool video_seek_status;
 };
 

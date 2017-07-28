@@ -851,7 +851,6 @@ void CMFCPlayerDlg::ChangePos()
 		IsPause = true;
 		
 		synchronise.Seek(stamp);
-
 		queue.Clear(true);
 		frame_queue.Clear(true);
 		audio_queue.Clear(true);
