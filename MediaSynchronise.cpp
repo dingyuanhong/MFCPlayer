@@ -6,7 +6,7 @@
 
 MediaSynchronise::MediaSynchronise(bool live)
 {
-	max_frame_duration = (live ? 10.0 : 3600.0);
+	max_frame_duration = (live ? 1000.0 : 3600.0);
 
 	Rate = 60;
 
