@@ -97,7 +97,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>3rd\ffmpeg\lib;$(OutDir);3rd\libyuv\lib\$(Configuration);3rd\libjpeg\lib\$(Configuration);3rd\SDL\lib\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\ffmpeg\lib;$(OutDir);3rd\libyuv\lib\$(Configuration);3rd\libjpeg\lib\$(Configuration);3rd\SDL\lib\$(Configuration);3rd\SDL\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>
@@ -122,7 +122,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>3rd\ffmpeg\lib;$(OutDir);3rd\libyuv\lib\$(Platform)\$(Configuration);3rd\libjpeg\lib\$(Platform)\$(Configuration);3rd\SDL\lib\$(Platform)\$(Configuration);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>3rd\ffmpeg\lib;$(OutDir);3rd\libyuv\lib\$(Platform)\$(Configuration);3rd\libjpeg\lib\$(Platform)\$(Configuration);3rd\SDL\lib\$(Platform)\$(Configuration);3rd\SDL\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
     <Midl>
       <MkTypLibCompatible>false</MkTypLibCompatible>

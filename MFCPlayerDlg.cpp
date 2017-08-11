@@ -32,7 +32,9 @@ THREADINIT(CMFCPlayerDlg, DecodeAudioFrame)
 int64_t GetTimeStamp(AVRational time_base, AVFrame * frame)
 {
 	int64_t timestamp = (frame->pts != AV_NOPTS_VALUE) ? (frame->pts * av_q2d(time_base) * 1000) :
+#ifndef USE_NEW_API
 		(frame->pkt_pts != AV_NOPTS_VALUE) ? (frame->pkt_pts * av_q2d(time_base) * 1000) : NAN;
+#endif
 	(frame->pkt_dts != AV_NOPTS_VALUE) ? (frame->pkt_dts * av_q2d(time_base) * 1000) : NAN;
 
 	return timestamp;
@@ -293,7 +295,8 @@ void CMFCPlayerDlg::OnBnClickedBtnOpen()
 		CString path = dlg.GetPathName();
 		EvoMediaSource *source = new EvoMediaSourceLock();
 		std::string file = P2AString(path.GetBuffer());
-		int ret = source->Open(file.c_str());
+		EvoMediaSourceConfig config = {true,true};
+		int ret = source->Open(file.c_str(),&config);
 		if (ret != 0)
 		{
 			delete source;
@@ -304,7 +307,7 @@ void CMFCPlayerDlg::OnBnClickedBtnOpen()
 
 		EvoMediaSource *audioSource = new EvoMediaSourceLock();
 		file = P2AString(path.GetBuffer());
-		ret = audioSource->Open(file.c_str(),NULL,AVMEDIA_TYPE_AUDIO);
+		ret = audioSource->Open(file.c_str(),&config,AVMEDIA_TYPE_AUDIO);
 		if (ret != 0)
 		{
 			delete audioSource;
@@ -340,21 +343,22 @@ int CMFCPlayerDlg::InitVideo(EvoMediaSource *source)
 	}
 
 	AVStream * stream = source->GetVideoStream();
-	AVCodec *codec = (AVCodec*)stream->codec->codec;
-	if (codec == NULL) codec = avcodec_find_decoder(stream->codec->codec_id);
-	if (avcodec_open2(stream->codec, codec, NULL) < 0)
+	AVCodecContext * codecContext = source->GetCodecContext();
+	AVCodec *codec = (AVCodec*)codecContext->codec;
+	if (codec == NULL) codec = avcodec_find_decoder(codecContext->codec_id);
+	if (avcodec_open2(codecContext, codec, NULL) < 0)
 	{
 		return -1;
 	}
 
 	source_ = source;
-	videoDecode_ = new VideoDecoder(stream->codec);
+	videoDecode_ = new VideoDecoder(codecContext);
 
 #ifndef USE_LIBYUV_CONVERT
 	struct EvoVideoInfo info;
 	info.Width = 0;
 	info.Height = 0;
-	info.Format = stream->codec->pix_fmt;
+	info.Format = codecContext->pix_fmt;
 
 	struct EvoVideoInfo des = info;
 	des.Format = AV_PIX_FMT_BGRA;
@@ -394,25 +398,26 @@ int CMFCPlayerDlg::InitAudio(EvoMediaSource *source)
 	}
 
 	AVStream * stream = source->GetVideoStream();
-	AVCodec *codec = (AVCodec*)stream->codec->codec;
-	if (codec == NULL) codec = avcodec_find_decoder(stream->codec->codec_id);
-	if (avcodec_open2(stream->codec, codec, NULL) < 0)
+	AVCodecContext * codecContext = source->GetCodecContext();
+	AVCodec *codec = (AVCodec*)codecContext->codec;
+	if (codec == NULL) codec = avcodec_find_decoder(codecContext->codec_id);
+	if (avcodec_open2(codecContext, codec, NULL) < 0)
 	{
 		return -1;
 	}
 
 	audiosource_ = source;
-	audioDecode_ = new AudioDecoder(stream->codec);
+	audioDecode_ = new AudioDecoder(codecContext);
 	EvoAudioInfo info = {0};
-	if (stream->codec->codec_id == AV_CODEC_ID_MP2 || stream->codec->codec_id == AV_CODEC_ID_MP3)
+	if (codecContext->codec_id == AV_CODEC_ID_MP2 || codecContext->codec_id == AV_CODEC_ID_MP3)
 		info.nb_samples = 1152;
 	else
 		info.nb_samples = 1024;
 
-	info.BitSize = stream->codec->bit_rate;
-	info.Channels = stream->codec->channels;
+	info.BitSize = codecContext->bit_rate;
+	info.Channels = codecContext->channels;
 	info.format = AV_SAMPLE_FMT_S16;// stream->codec->sample_fmt;
-	info.SampleRate = stream->codec->sample_rate;
+	info.SampleRate = codecContext->sample_rate;
 	audioDecode_->SetTargetInfo(info);
 
 	audioPlay.AttachSync(&synchronise);
@@ -453,16 +458,17 @@ void CMFCPlayerDlg::Start()
 			hDecodeAudioThread = CreateThread(NULL, 0, THREADNAME(DecodeAudioFrame), this, 0, NULL);
 
 			AVStream * stream = audiosource_->GetVideoStream();
+			AVCodecContext * codecContext = audiosource_->GetCodecContext();
 			EvoAudioInfo info = { 0 };
-			if (stream->codec->codec_id == AV_CODEC_ID_MP2 || stream->codec->codec_id == AV_CODEC_ID_MP3)
+			if (codecContext->codec_id == AV_CODEC_ID_MP2 || codecContext->codec_id == AV_CODEC_ID_MP3)
 				info.nb_samples = 1152;
 			else
 				info.nb_samples = 1024;
 
-			info.BitSize = stream->codec->bit_rate;
-			info.Channels = stream->codec->channels;
-			info.format = AV_SAMPLE_FMT_S16;// stream->codec->sample_fmt;
-			info.SampleRate = stream->codec->sample_rate;
+			info.BitSize = codecContext->bit_rate;
+			info.Channels = codecContext->channels;
+			info.format = AV_SAMPLE_FMT_S16;// codecContext->sample_fmt;
+			info.SampleRate = codecContext->sample_rate;
 
 			audioPlay.closeAudio();
 			audioPlay.openAudio(info.SampleRate, info.Channels, info.nb_samples);
