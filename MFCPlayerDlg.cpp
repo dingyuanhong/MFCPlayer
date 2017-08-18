@@ -865,9 +865,11 @@ void CMFCPlayerDlg::ChangePos()
 		frame_queue.Clear(true);
 		audio_queue.Clear(true);
 		audioPlay.GetQueue().Clear(true);
-
-		if (source_ != NULL) source_->Seek(stamp);
-		if (audiosource_ != NULL) audiosource_->Seek(stamp);
+		int ret = 0;
+		if (source_ != NULL) ret = source_->Seek(stamp);
+		printf("seek video result:%d\n",ret);
+		if (audiosource_ != NULL) ret = audiosource_->Seek(stamp);
+		printf("seek audio result:%d\n", ret);
 
 		queue.Restart();
 		frame_queue.Restart();

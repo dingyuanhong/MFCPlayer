@@ -231,7 +231,7 @@ int EvoMediaSource::Seek(int64_t millisecond)
 		millisecond = duration;
 	}
 	int64_t timeStamp = millisecond * 1000;
-	int ret = av_seek_frame(context_,-1, timeStamp, AVSEEK_FLAG_BACKWARD);
+	int ret = av_seek_frame(context_,-1, timeStamp, AVSEEK_FLAG_BACKWARD|AVSEEK_FLAG_ANY);
 	if (ret >= 0)
 	{
 		avformat_flush(this->context_);
