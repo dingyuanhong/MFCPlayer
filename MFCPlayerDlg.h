@@ -78,6 +78,7 @@ private:
 	bool IsPause;
 	bool IsStarted;
 
+	bool lastStampUpdate;
 	EvoMediaSource * source_;
 	VideoDecoder *videoDecode_;
 	EvoVideoConvert convert_;

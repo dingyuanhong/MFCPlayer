@@ -438,8 +438,10 @@ void CMFCPlayerDlg::OnBnClickedBtnPlay()
 {
 	if (source_ == NULL) return;
 	if (videoDecode_ == NULL) return;
+	KillTimer(WM_FLUSHSTAMP);
 	Start();
 	IsPause = false;
+	lastStampUpdate = false;
 	audioPlay.playAudio();
 	SetTimer(WM_FLUSHSTAMP,1000,NULL);
 }
@@ -843,7 +845,20 @@ void CMFCPlayerDlg::OnTimer(UINT_PTR id)
 {
 	if (id == WM_FLUSHSTAMP)
 	{
+		int duration = 0;
+		if (source_ != NULL)
+		{
+			duration = source_->GetDuration();
+		}
 		int64_t stamp = synchronise.GetMasterTimeStamp();
+		if (duration != 0 && stamp > duration)
+		{
+			if (lastStampUpdate)
+			{
+				return;
+			}
+			lastStampUpdate = true;
+		}
 		CSliderCtrl * slider = (CSliderCtrl*)GetDlgItem(IDC_SLIDER_TIME);
 		slider->SetPos(stamp);
 		CurrentPos = stamp;
