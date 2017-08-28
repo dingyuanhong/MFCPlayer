@@ -341,7 +341,10 @@ int CMFCPlayerDlg::InitVideo(EvoMediaSource *source)
 	{
 		delete videoDecode_;
 	}
-
+	if (source == NULL)
+	{
+		return -1;
+	}
 	AVStream * stream = source->GetVideoStream();
 	AVCodecContext * codecContext = source->GetCodecContext();
 	AVCodec *codec = (AVCodec*)codecContext->codec;
@@ -395,6 +398,11 @@ int CMFCPlayerDlg::InitAudio(EvoMediaSource *source)
 	{
 		delete audioDecode_;
 		audioDecode_ = NULL;
+	}
+
+	if (source == NULL)
+	{
+		return -1;
 	}
 
 	AVStream * stream = source->GetVideoStream();
