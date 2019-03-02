@@ -57,6 +57,10 @@ void ConsoleMFC()
 	freopen("CONOUT$", "w", stdout);
 }
 
+void ffmpeg_callback(void*, int, const char*f, va_list l) {
+	vprintf(f,l);
+}
+
 // CMFCPlayerApp initialization
 
 BOOL CMFCPlayerApp::InitInstance()
@@ -92,6 +96,9 @@ BOOL CMFCPlayerApp::InitInstance()
 	// such as the name of your company or organization
 	SetRegistryKey(_T("Local AppWizard-Generated Applications"));
 	ConsoleMFC();
+
+	av_log_set_callback(ffmpeg_callback);
+
 	CMFCPlayerDlg dlg;
 	m_pMainWnd = &dlg;
 	INT_PTR nResponse = dlg.DoModal();

@@ -65,9 +65,10 @@ int EvoMediaSource::Open(const char * file, EvoMediaSourceConfig *config, enum A
 
 	AVDictionary* options = NULL;
 	//����̽��ͷ��������ĵȴ�
-	av_dict_set(&options, "max_analyze_duration", "100", 0);
-	av_dict_set(&options, "probesize", "1024", 0);
-	int ret = avformat_open_input(&context_,file,NULL, &options);
+	//av_dict_set(&options, "max_analyze_duration", "100", 0);
+	//av_dict_set(&options, "probesize", "1024", 0);
+	//int ret = avformat_open_input(&context_,file,NULL, &options);
+	int ret = avformat_open_input(&context_, file, NULL, NULL);
 	if (ret != 0)
 	{
 		if (context_ != NULL)
@@ -98,7 +99,8 @@ int EvoMediaSource::Open(const char * file, EvoMediaSourceConfig *config, enum A
 #ifndef USE_NEW_API
 	//context_->max_analyze_duration = 5 * AV_TIME_BASE;
 #endif
-	if (avformat_find_stream_info(context_, NULL))
+	ret = avformat_find_stream_info(context_, NULL);
+	if (ret < 0)
 	{
 		if (context_ != NULL)
 		{
@@ -284,7 +286,7 @@ int EvoMediaSource::ReadFrame(EvoFrame** out)
 						}
 						if (annexb_type > 0 && Config_.UseAnnexb)
 						{
-							ChangeAnnexb(frame);
+							//ChangeAnnexb(frame);
 						}
 
 						*out = frame;
